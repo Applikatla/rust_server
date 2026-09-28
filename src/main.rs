@@ -1,28 +1,38 @@
+mod db;
 mod handler;
 mod utils;
 
 use axum::{
+    routing::{get, post},
     Router,
-    routing::get,
-    routing::post,
 };
 
 use handler::{
     health::health,
-    user::{user, user_by_id, create_user},
+    user::{create_user, user, user_by_id},
 };
 
 #[tokio::main]
 async fn main() {
-    println!("Hello, world!");
+    dotenvy::dotenv().ok();
 
-    let app: Router<()> = Router::new().route("/health", get(health)).
-    route("/user", get(user)).
-    route("/user/{id}", get(user_by_id)).
-    route("/create-user", post(create_user));
+    let db = db::create_db_connection().await;
 
-    let listner = tokio::net::TcpListener::bind("127.0.0.1:8080").await.unwrap();
+    println!("Database connected successfully!");
+
+    let app = Router::new()
+        .route("/health", get(health))
+        .route("/user", get(user))
+        .route("/user/{id}", get(user_by_id))
+        .route("/create-user", post(create_user)).with_state(db);
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:8080")
+        .await
+        .unwrap();
+
     println!("Server running on http://127.0.0.1:8080");
 
-    axum::serve(listner, app).await.unwrap();
+    axum::serve(listener, app)
+        .await
+        .unwrap();
 }
